@@ -1,43 +1,21 @@
 from __future__ import annotations
 
 import json
-import os
 from typing import Any
 
 import keyring
 import typer
 
-from .client import SimpleLoginClient, SimpleLoginError
-
-KEYRING_SERVICE = "simplelogin-cli"
-KEYRING_ACCOUNT = "simplelogin-api-key"
+from .alfred import app as alfred_app
+from .auth import KEYRING_ACCOUNT, KEYRING_SERVICE, get_api_key, get_client
+from .client import SimpleLoginError
 
 app = typer.Typer(
     name="sl",
     help="SimpleLogin alias/reverse-alias CLI.",
     no_args_is_help=True,
 )
-
-
-def get_api_key(explicit: str | None) -> str:
-    key = explicit or os.getenv("SIMPLELOGIN_API_KEY")
-    if not key:
-        key = keyring.get_password(KEYRING_SERVICE, KEYRING_ACCOUNT)
-    if not key:
-        raise typer.BadParameter(
-            "No API key. Run `sl login`, set SIMPLELOGIN_API_KEY, or use --api-key."
-        )
-    return key.strip()
-
-
-def get_client(api_key: str | None) -> SimpleLoginClient:
-    return SimpleLoginClient(
-        api_key=get_api_key(api_key),
-        base_url=os.getenv(
-            "SIMPLELOGIN_API_URL",
-            "https://api.simplelogin.io",
-        ),
-    )
+app.add_typer(alfred_app, name="alfred")
 
 
 def print_json(value: Any) -> None:
@@ -91,6 +69,18 @@ def login() -> None:
 
     keyring.set_password(KEYRING_SERVICE, KEYRING_ACCOUNT, token)
     typer.echo("API token verified and saved to the system keychain.")
+
+
+@app.command("logout")
+def logout() -> None:
+    """Remove the saved SimpleLogin API token from the system keychain."""
+    token = keyring.get_password(KEYRING_SERVICE, KEYRING_ACCOUNT)
+    if token is None:
+        typer.echo("No saved API token found in the system keychain.")
+        return
+
+    keyring.delete_password(KEYRING_SERVICE, KEYRING_ACCOUNT)
+    typer.echo("Saved API token removed from the system keychain.")
 
 
 @app.command("list-aliases")

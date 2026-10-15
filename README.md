@@ -34,8 +34,9 @@ request first and only saves the token if the request succeeds:
 sl login
 ```
 
-Commands retrieve the saved token automatically. You can also set
-`SIMPLELOGIN_API_KEY` or pass the global `--api-key` option; explicit values
+Commands retrieve the saved token automatically. Remove it from the Keychain
+with `sl logout`. You can also set `SIMPLELOGIN_API_KEY` or pass the global
+`--api-key` option; explicit values
 and the environment variable take precedence over the Keychain. Avoid passing
 secrets on the command line when possible, since they may be visible in shell
 history or process listings.
@@ -49,6 +50,25 @@ https://api.simplelogin.io
 ```
 
 Override it with `SIMPLELOGIN_API_URL` if you use another SimpleLogin-compatible deployment.
+
+## Alfred integration
+
+The Alfred-specific commands are grouped under `sl alfred`:
+
+```bash
+sl alfred aliases [email-query]
+sl alfred create <alias-id> <recipient-email>
+```
+
+`sl alfred aliases` emits Alfred Script Filter JSON. With no query it returns
+all aliases; with a query it filters by email address only. Each item displays
+the email as its title and an enabled/disabled status plus latest activity as
+its subtitle (and marks pinned aliases). This metadata comes with the aliases
+response, so no per-alias contacts requests are needed. Each item passes the
+alias ID as its `arg`, so Alfred can carry that ID into a follow-up recipient
+input. After the follow-up, call `sl alfred create` with the selected ID and
+recipient; it prints only the resulting reverse-alias address for Alfred to
+copy to the clipboard.
 
 ## Commands
 

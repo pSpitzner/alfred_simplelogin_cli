@@ -54,6 +54,36 @@ def test_login_verifies_token_before_saving(monkeypatch):
     }
 
 
+def test_logout_removes_saved_token(monkeypatch):
+    deleted = []
+    monkeypatch.setattr(main.keyring, "get_password", lambda service, account: "token")
+    monkeypatch.setattr(
+        main.keyring,
+        "delete_password",
+        lambda service, account: deleted.append((service, account)),
+    )
+    monkeypatch.setattr(main.typer, "echo", lambda message: None)
+
+    main.logout()
+
+    assert deleted == [(main.KEYRING_SERVICE, main.KEYRING_ACCOUNT)]
+
+
+def test_logout_is_noop_when_no_saved_token(monkeypatch):
+    deleted = []
+    monkeypatch.setattr(main.keyring, "get_password", lambda service, account: None)
+    monkeypatch.setattr(
+        main.keyring,
+        "delete_password",
+        lambda *args: deleted.append(args),
+    )
+    monkeypatch.setattr(main.typer, "echo", lambda message: None)
+
+    main.logout()
+
+    assert deleted == []
+
+
 def test_login_does_not_save_invalid_token(monkeypatch):
     saved = []
 
