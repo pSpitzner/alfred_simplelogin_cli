@@ -1,122 +1,42 @@
 # SimpleLogin CLI
 
-A small Python/Typer CLI for:
+A small CLI for managing SimpleLogin aliases and reverse aliases.
 
-- listing all SimpleLogin aliases
-- finding an alias by email/name
-- listing contacts for an alias
-- creating a contact/reverse alias for an alias
-- printing the resulting `reverse_alias_address`
+100% vibe coded.
 
-## Install
+## Setup
+
+Install [uv](https://docs.astral.sh/uv/), then run:
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e .
+uv sync
+uv run sl login
 ```
 
-On Windows PowerShell:
+Login verifies your API key and saves it in the Keychain. You can also
+set `SIMPLELOGIN_API_KEY` to use an environment-provided key. Run
+`uv run sl logout` to remove the saved Keychain key.
 
-```powershell
-py -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -e .
-```
-
-## Authentication
-
-Verify and save your SimpleLogin API key/PAT in the macOS Keychain with an
-interactive, hidden-input prompt. `sl login` makes a lightweight aliases API
-request first and only saves the token if the request succeeds:
+## Usage
 
 ```bash
-sl login
+# List and search aliases
+uv run sl list-aliases
+uv run sl list-aliases --search github
+
+# List an alias's contacts and reverse aliases
+uv run sl list-contacts github@aleeas.com
+
+# Create a reverse alias for a recipient
+uv run sl create-reverse-alias github@aleeas.com person@example.com
+
+# Get JSON for scripting
+uv run sl list-aliases --json
 ```
 
-Commands retrieve the saved token automatically. Remove it from the Keychain
-with `sl logout`. You can also set `SIMPLELOGIN_API_KEY` or pass the global
-`--api-key` option; explicit values
-and the environment variable take precedence over the Keychain. Avoid passing
-secrets on the command line when possible, since they may be visible in shell
-history or process listings.
+Creating a reverse alias for an existing contact reuses its current address.
 
-The CLI sends the key as the `Authentication` HTTP header.
+## Alfred Workflow
 
-The default API base URL is:
-
-```text
-https://api.simplelogin.io
-```
-
-Override it with `SIMPLELOGIN_API_URL` if you use another SimpleLogin-compatible deployment.
-
-## Alfred integration
-
-The Alfred-specific commands are grouped under `sl alfred`:
-
-```bash
-sl alfred aliases [email-query]
-sl alfred create <alias-id> <recipient-email>
-```
-
-`sl alfred aliases` emits Alfred Script Filter JSON. With no query it returns
-all aliases; with a query it filters by email address only. Each item displays
-the email as its title and an enabled/disabled status plus latest activity as
-its subtitle (and marks pinned aliases). This metadata comes with the aliases
-response, so no per-alias contacts requests are needed. Each item passes the
-alias ID as its `arg`, so Alfred can carry that ID into a follow-up recipient
-input. After the follow-up, call `sl alfred create` with the selected ID and
-recipient; it prints only the resulting reverse-alias address for Alfred to
-copy to the clipboard.
-
-## Commands
-
-List aliases:
-
-```bash
-sl list-aliases
-sl list-aliases --search github
-```
-
-Create a reverse alias:
-
-```bash
-sl create-reverse-alias github@aleeas.com person@example.com
-```
-
-or, if you know the numeric alias ID:
-
-```bash
-sl create-reverse-alias-by-id 123 person@example.com
-```
-
-The command prints the address to put in `To:` when sending mail from that alias.
-
-List contacts:
-
-```bash
-sl list-contacts github@aleeas.com
-```
-
-Get raw JSON for scripting:
-
-```bash
-sl list-aliases --json
-sl list-contacts github@aleeas.com --json
-sl create-reverse-alias github@aleeas.com person@example.com --json
-```
-
-## Notes
-
-SimpleLogin's API documents:
-
-- `GET /api/v2/aliases?page_id=N`
-- `GET /api/aliases/:alias_id/contacts?page_id=N`
-- `POST /api/aliases/:alias_id/contacts`
-
-The contacts endpoint returns `reverse_alias_address`. If the contact already exists, SimpleLogin may return it with `existed=true`, so the CLI treats that as success rather than creating a duplicate.
-
-The CLI stores the PAT in the operating system's credential store through the
-`keyring` library (the macOS Keychain on macOS); it does not write the PAT to a
-project file.
+Grab the release from Github and see the
+[Alfred workflow guide](alfred/SimpleLogin/README.md) for installation and usage.

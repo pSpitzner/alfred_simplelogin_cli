@@ -1,3 +1,5 @@
+import io
+
 import pytest
 
 from simplelogin_cli import main
@@ -54,6 +56,30 @@ def test_login_verifies_token_before_saving(monkeypatch):
     }
 
 
+def test_login_can_read_token_from_stdin(monkeypatch):
+    saved = []
+
+    class Client:
+        def verify_api_key(self):
+            pass
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(main.sys, "stdin", io.StringIO("piped-token\n"))
+    monkeypatch.setattr(main, "get_client", lambda token: Client())
+    monkeypatch.setattr(
+        main.keyring,
+        "set_password",
+        lambda service, account, token: saved.append(token),
+    )
+    monkeypatch.setattr(main.typer, "echo", lambda message: None)
+
+    main.login(token_stdin=True)
+
+    assert saved == ["piped-token"]
+
+
 def test_logout_removes_saved_token(monkeypatch):
     deleted = []
     monkeypatch.setattr(main.keyring, "get_password", lambda service, account: "token")
@@ -84,7 +110,7 @@ def test_logout_is_noop_when_no_saved_token(monkeypatch):
     assert deleted == []
 
 
-def test_login_does_not_save_invalid_token(monkeypatch):
+def test_login_does_not_save_invalid_token(monkeypatch, capsys):
     saved = []
 
     class Client:
@@ -102,7 +128,8 @@ def test_login_does_not_save_invalid_token(monkeypatch):
         lambda *args: saved.append(args),
     )
 
-    with pytest.raises(main.typer.BadParameter, match="Could not verify API token"):
+    with pytest.raises(main.typer.Exit):
         main.login()
 
+    assert "Could not verify API token" in capsys.readouterr().err
     assert saved == []

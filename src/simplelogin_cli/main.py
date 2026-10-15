@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+import sys
+from typing import Any, NoReturn
 
 import keyring
 import typer
@@ -20,6 +21,11 @@ app.add_typer(alfred_app, name="alfred")
 
 def print_json(value: Any) -> None:
     typer.echo(json.dumps(value, indent=2, ensure_ascii=False))
+
+
+def raise_cli_error(message: str) -> NoReturn:
+    typer.echo(f"Error: {message}", err=True)
+    raise typer.Exit(code=1)
 
 
 def alias_summary(alias: dict[str, Any]) -> str:
@@ -53,17 +59,28 @@ def main(
 
 
 @app.command("login")
-def login() -> None:
+def login(
+    token_stdin: bool = typer.Option(
+        False,
+        "--token-stdin",
+        help="Read the API token from standard input (for workflow integrations).",
+        hidden=True,
+    ),
+) -> None:
     """Save a SimpleLogin API token in the system keychain."""
-    token = typer.prompt("SimpleLogin API token", hide_input=True).strip()
+    token = (
+        sys.stdin.read().strip()
+        if token_stdin is True
+        else typer.prompt("SimpleLogin API token", hide_input=True).strip()
+    )
     if not token:
-        raise typer.BadParameter("The API token cannot be empty.")
+        raise_cli_error("The API token cannot be empty.")
 
     client = get_client(token)
     try:
         client.verify_api_key()
     except SimpleLoginError as exc:
-        raise typer.BadParameter(f"Could not verify API token: {exc}") from exc
+        raise_cli_error(f"Could not verify API token: {exc}")
     finally:
         client.close()
 
@@ -97,7 +114,7 @@ def aliases(
     try:
         rows = client.list_aliases()
     except SimpleLoginError as exc:
-        raise typer.ClickException(str(exc)) from exc
+        raise_cli_error(str(exc))
     finally:
         client.close()
 
@@ -134,7 +151,7 @@ def contacts(
         resolved = resolve_alias(client, alias)
         rows = client.list_contacts(int(resolved["id"]))
     except (SimpleLoginError, KeyError, ValueError) as exc:
-        raise typer.ClickException(str(exc)) from exc
+        raise_cli_error(str(exc))
     finally:
         client.close()
 
@@ -162,7 +179,7 @@ def create_contact_for_alias(
         resolved = resolve_alias(client, alias_selector)
         result = client.create_contact(int(resolved["id"]), contact)
     except (SimpleLoginError, KeyError, ValueError) as exc:
-        raise typer.ClickException(str(exc)) from exc
+        raise_cli_error(str(exc))
     finally:
         client.close()
 
@@ -172,7 +189,7 @@ def create_contact_for_alias(
 
     address = result.get("reverse_alias_address")
     if not address:
-        raise typer.ClickException(
+        raise_cli_error(
             "SimpleLogin succeeded but did not return reverse_alias_address."
         )
 
@@ -208,7 +225,7 @@ def contact_id(
     try:
         result = client.create_contact(alias_id, contact_address)
     except SimpleLoginError as exc:
-        raise typer.ClickException(str(exc)) from exc
+        raise_cli_error(str(exc))
     finally:
         client.close()
 
@@ -218,7 +235,7 @@ def contact_id(
 
     address = result.get("reverse_alias_address")
     if not address:
-        raise typer.ClickException(
+        raise_cli_error(
             "SimpleLogin succeeded but did not return reverse_alias_address."
         )
 

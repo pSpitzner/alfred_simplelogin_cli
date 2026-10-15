@@ -98,6 +98,32 @@ class SimpleLoginClient:
 
         return aliases
 
+    def list_alias_options(self) -> dict[str, Any]:
+        """Fetch available custom-alias suffixes and prefix suggestions."""
+        return self._request("GET", "/api/v5/alias/options")
+
+    def list_mailboxes(self) -> list[dict[str, Any]]:
+        """Fetch the user's mailbox destinations."""
+        data = self._request("GET", "/api/v2/mailboxes")
+        return data.get("mailboxes") or []
+
+    def create_custom_alias(
+        self,
+        prefix: str,
+        signed_suffix: str,
+        mailbox_ids: list[int],
+    ) -> dict[str, Any]:
+        """Create a custom alias using an opaque signed suffix from the API."""
+        return self._request(
+            "POST",
+            "/api/v3/alias/custom/new",
+            json={
+                "alias_prefix": prefix,
+                "signed_suffix": signed_suffix,
+                "mailbox_ids": mailbox_ids,
+            },
+        )
+
     def list_contacts(self, alias_id: int) -> list[dict[str, Any]]:
         """Fetch every contact for an alias."""
         contacts: list[dict[str, Any]] = []
@@ -124,7 +150,13 @@ class SimpleLoginClient:
     def create_contact(
         self, alias_id: int, contact: str
     ) -> dict[str, Any]:
-        """Create/retrieve the reverse alias for a contact."""
+        """Return an existing reverse alias or create one for this contact."""
+        normalized_contact = contact.strip().casefold()
+        for existing in self.list_contacts(alias_id):
+            existing_contact = str(existing.get("contact") or "").strip().casefold()
+            if normalized_contact and existing_contact == normalized_contact:
+                return {**existing, "existed": True}
+
         return self._request(
             "POST",
             f"/api/aliases/{alias_id}/contacts",
